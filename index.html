@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>五子棋游戏</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="game-container">
+    <header class="game-header">
+      <h1 class="game-title">五子棋</h1>
+      <div class="game-info">
+        <div class="current-player">
+          <span class="player-label">当前玩家:</span>
+          <span class="player-piece player-black"></span>
+          <span class="player-name">黑棋</span>
+        </div>
+        <div class="game-status">游戏进行中</div>
+      </div>
+    </header>
+
+    <main class="game-main">
+      <div class="board-container">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+      </div>
+    </main>
+
+    <footer class="game-footer">
+      <div class="game-controls">
+        <button id="restartBtn" class="btn btn-primary">重新开始</button>
+        <button id="undoBtn" class="btn btn-secondary">悔棋</button>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
