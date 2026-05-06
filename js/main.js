@@ -28,6 +28,8 @@ class WZQGame {
 
     // 从 LocalStorage 恢复背景
     this.renderer.loadFromStorage();
+    // 从 LocalStorage 恢复音乐
+    this.ui.loadMusicFromStorage();
 
     // 响应式处理：窗口大小变化时重新设置 canvas 分辨率
     this.handleResize = this.handleResize.bind(this);
