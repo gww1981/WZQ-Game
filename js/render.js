@@ -4,6 +4,10 @@ export class GameRenderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.boardSize = boardSize;
+    // 背景相关属性
+    this.backgroundImage = null;
+    this.backgroundLoaded = false;
+    this.backgroundType = 'default'; // 'default' | 'preset' | 'custom'
     this.setupCanvas();
   }
 
@@ -70,8 +74,12 @@ export class GameRenderer {
     const h = this.canvas.clientHeight;
 
     // 绘制棋盘背景
-    ctx.fillStyle = '#deb887';
-    ctx.fillRect(0, 0, w, h);
+    if (this.backgroundLoaded && this.backgroundImage) {
+      this.drawBackground();
+    } else {
+      ctx.fillStyle = '#deb887';
+      ctx.fillRect(0, 0, w, h);
+    }
 
     // 绘制网格线
     ctx.strokeStyle = '#8b4513';
@@ -243,5 +251,106 @@ export class GameRenderer {
     ctx.stroke();
 
     ctx.setLineDash([]);
+  }
+
+  // 设置背景图片
+  // source: URL 字符串（本地或网络路径）或 File 对象
+  // type: 'preset' | 'custom'
+  setBackground(source, type = 'preset') {
+    this.backgroundSrc = source; // 保存用于 LocalStorage
+    const img = new Image();
+    img.onload = () => {
+      this.backgroundImage = img;
+      this.backgroundLoaded = true;
+      this.backgroundType = type;
+      this.saveToStorage();
+      if (this.board) {
+        this.render(this.board);
+      }
+    };
+    img.onerror = () => {
+      console.error('背景图片加载失败:', source);
+    };
+    img.src = source;
+  }
+
+  // 清除背景，恢复默认木色
+  clearBackground() {
+    this.backgroundImage = null;
+    this.backgroundLoaded = false;
+    this.backgroundType = 'default';
+    this.clearFromStorage();
+    if (this.board) {
+      this.render(this.board);
+    }
+  }
+
+  // 绘制背景图（保持比例裁剪，object-fit: cover 逻辑）
+  drawBackground() {
+    const { ctx } = this;
+    const img = this.backgroundImage;
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+
+    if (!img) return;
+
+    const imgRatio = img.width / img.height;
+    const canvasRatio = w / h;
+
+    let sx, sy, sw, sh;
+
+    if (imgRatio > canvasRatio) {
+      // 图片更宽，裁剪左右
+      sh = img.height;
+      sw = sh * canvasRatio;
+      sx = (img.width - sw) / 2;
+      sy = 0;
+    } else {
+      // 图片更高，裁剪上下
+      sw = img.width;
+      sh = sw / canvasRatio;
+      sx = 0;
+      sy = (img.height - sh) / 2;
+    }
+
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+  }
+
+  // LocalStorage 持久化
+  saveToStorage() {
+    if (this.backgroundType === 'default') return;
+    const data = {
+      type: this.backgroundType,
+      src: this.backgroundSrc
+    };
+    try {
+      localStorage.setItem('wzq-background', JSON.stringify(data));
+    } catch (e) {
+      // storage 可能不可用
+    }
+  }
+
+  // 从 LocalStorage 恢复背景
+  loadFromStorage() {
+    try {
+      const raw = localStorage.getItem('wzq-background');
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (data.type && data.src) {
+        this.backgroundSrc = data.src;
+        this.setBackground(data.src, data.type);
+      }
+    } catch (e) {
+      // storage 不可用或数据损坏
+    }
+  }
+
+  // 清除 LocalStorage 中的背景
+  clearFromStorage() {
+    try {
+      localStorage.removeItem('wzq-background');
+    } catch (e) {
+      // ignore
+    }
   }
 }
