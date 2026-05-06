@@ -7,6 +7,11 @@ export class GameUI {
     this.hoverPosition = null;
     // 复用 AudioContext，避免被浏览器自动播放策略阻止
     this.audioContext = null;
+    // 背景音乐相关
+    this.backgroundAudio = null;
+    this.currentMusicSrc = null;
+    this.currentMusicType = 'none'; // 'none' | 'preset' | 'custom'
+    this.volume = 0.5;
     // 存储事件处理器引用，用于 destroy 时移除
     this.boundHandlers = {};
     this.initEventListeners();
@@ -66,6 +71,12 @@ export class GameUI {
     if (bgBtn) {
       this.boundHandlers.handleBgBtn = this.showBackgroundSelector.bind(this);
       bgBtn.addEventListener('click', this.boundHandlers.handleBgBtn);
+    }
+
+    const musicBtn = document.getElementById('musicBtn');
+    if (musicBtn) {
+      this.boundHandlers.handleMusicBtn = this.showMusicSelector.bind(this);
+      musicBtn.addEventListener('click', this.boundHandlers.handleMusicBtn);
     }
 
     // 键盘事件
@@ -373,6 +384,18 @@ export class GameUI {
       bgBtn.removeEventListener('click', this.boundHandlers.handleBgBtn);
     }
 
+    const musicBtn = document.getElementById('musicBtn');
+    if (musicBtn && this.boundHandlers.handleMusicBtn) {
+      musicBtn.removeEventListener('click', this.boundHandlers.handleMusicBtn);
+    }
+
+    // 停止并清理背景音乐
+    if (this.backgroundAudio) {
+      this.backgroundAudio.pause();
+      this.backgroundAudio.src = '';
+      this.backgroundAudio = null;
+    }
+
     // 移除键盘事件
     document.removeEventListener('keydown', this.boundHandlers.handleKeyDown);
 
@@ -475,5 +498,232 @@ export class GameUI {
       };
       reader.readAsDataURL(file);
     });
+  }
+
+  // ===================== 背景音乐相关 =====================
+
+  // 预设音乐列表
+  getPresetMusics() {
+    return [
+      { id: 'none', name: '关闭音乐', icon: '🔇', file: null },
+      { id: 'peaceful', name: '宁静', icon: '🌿', file: 'assets/music/preset-peaceful.mp3' },
+      { id: 'classical', name: '古典', icon: '🎻', file: 'assets/music/preset-classical.mp3' },
+      { id: 'nature', name: '自然', icon: '🌊', file: 'assets/music/preset-nature.mp3' },
+    ];
+  }
+
+  // 播放背景音乐
+  playMusic(src) {
+    // 停止当前音乐
+    if (this.backgroundAudio) {
+      this.backgroundAudio.pause();
+      this.backgroundAudio.src = '';
+    }
+
+    if (!src) {
+      this.backgroundAudio = null;
+      this.currentMusicSrc = null;
+      this.currentMusicType = 'none';
+      return;
+    }
+
+    this.backgroundAudio = new Audio();
+    this.backgroundAudio.loop = true;
+    this.backgroundAudio.volume = this.volume;
+    this.backgroundAudio.src = src;
+
+    // 用户交互后才能播放
+    this.backgroundAudio.play().catch(err => {
+      console.warn('音乐播放失败:', err);
+    });
+
+    this.currentMusicSrc = src;
+  }
+
+  // 停止背景音乐
+  stopMusic() {
+    if (this.backgroundAudio) {
+      this.backgroundAudio.pause();
+      this.backgroundAudio.src = '';
+      this.backgroundAudio = null;
+    }
+    this.currentMusicSrc = null;
+    this.currentMusicType = 'none';
+  }
+
+  // 设置音量
+  setMusicVolume(vol) {
+    this.volume = Math.max(0, Math.min(1, vol));
+    if (this.backgroundAudio) {
+      this.backgroundAudio.volume = this.volume;
+    }
+    this.saveMusicToStorage();
+  }
+
+  // 显示音乐选择器
+  showMusicSelector() {
+    const existing = document.getElementById('musicSelectorOverlay');
+    if (existing) existing.remove();
+
+    const presets = this.getPresetMusics();
+    const currentSrc = this.currentMusicSrc;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'musicSelectorOverlay';
+    overlay.className = 'music-selector-overlay';
+
+    const selector = document.createElement('div');
+    selector.className = 'music-selector';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'music-selector-header';
+    const headerTitle = document.createElement('span');
+    headerTitle.textContent = '选择音乐';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'music-close';
+    closeBtn.textContent = '×';
+    header.appendChild(headerTitle);
+    header.appendChild(closeBtn);
+    selector.appendChild(header);
+
+    // Options
+    const options = document.createElement('div');
+    options.className = 'music-options';
+    presets.forEach(p => {
+      const isActive = (p.id === 'none' && this.currentMusicType === 'none') ||
+        (p.file && currentSrc && currentSrc.endsWith(p.file.split('/').pop()));
+
+      const option = document.createElement('div');
+      option.className = 'music-option' + (isActive ? ' active' : '');
+      option.dataset.id = p.id;
+      option.dataset.file = p.file || '';
+
+      const icon = document.createElement('div');
+      icon.className = 'music-option-icon';
+      icon.textContent = p.icon;
+      option.appendChild(icon);
+
+      const info = document.createElement('div');
+      info.className = 'music-option-info';
+      const name = document.createElement('div');
+      name.className = 'music-option-name';
+      name.textContent = p.name;
+      info.appendChild(name);
+      option.appendChild(info);
+
+      options.appendChild(option);
+    });
+    selector.appendChild(options);
+
+    // Volume control
+    const volumeDiv = document.createElement('div');
+    volumeDiv.className = 'music-volume';
+    const volumeLabel = document.createElement('label');
+    volumeLabel.textContent = '音量';
+    const volumeSlider = document.createElement('input');
+    volumeSlider.type = 'range';
+    volumeSlider.min = '0';
+    volumeSlider.max = '1';
+    volumeSlider.step = '0.05';
+    volumeSlider.value = String(this.volume);
+    volumeSlider.addEventListener('input', (e) => {
+      this.setMusicVolume(parseFloat(e.target.value));
+    });
+    volumeDiv.appendChild(volumeLabel);
+    volumeDiv.appendChild(volumeSlider);
+    selector.appendChild(volumeDiv);
+
+    // Upload area
+    const uploadArea = document.createElement('div');
+    uploadArea.className = 'music-upload-area';
+    const label = document.createElement('label');
+    label.className = 'btn btn-secondary';
+    label.textContent = '上传音乐';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.mp3,.wav,.ogg,audio/*';
+    fileInput.hidden = true;
+    label.appendChild(fileInput);
+    const uploadHint = document.createElement('span');
+    uploadHint.className = 'music-upload-hint';
+    uploadHint.textContent = '支持 MP3、WAV、OGG';
+    uploadArea.appendChild(label);
+    uploadArea.appendChild(uploadHint);
+    selector.appendChild(uploadArea);
+
+    overlay.appendChild(selector);
+    document.body.appendChild(overlay);
+
+    // Events
+    closeBtn.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    options.querySelectorAll('.music-option').forEach(el => {
+      el.addEventListener('click', () => {
+        const file = el.dataset.file;
+        if (!file) {
+          this.stopMusic();
+        } else {
+          this.playMusic(file);
+          this.currentMusicType = 'preset';
+        }
+        this.saveMusicToStorage();
+        overlay.remove();
+      });
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+      if (file.size > MAX_SIZE) {
+        alert('音乐文件不能超过 10MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        this.playMusic(ev.target.result);
+        this.currentMusicType = 'custom';
+        this.saveMusicToStorage();
+        overlay.remove();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // LocalStorage 持久化
+  saveMusicToStorage() {
+    try {
+      const data = {
+        type: this.currentMusicType,
+        src: this.currentMusicSrc,
+        volume: this.volume
+      };
+      localStorage.setItem('wzq-music', JSON.stringify(data));
+    } catch (e) {
+      // storage 不可用
+    }
+  }
+
+  // 从 LocalStorage 恢复音乐
+  loadMusicFromStorage() {
+    try {
+      const raw = localStorage.getItem('wzq-music');
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (data.volume !== undefined) {
+        this.volume = data.volume;
+      }
+      if (data.src && data.type) {
+        this.currentMusicSrc = data.src;
+        this.currentMusicType = data.type;
+        this.playMusic(data.src);
+      }
+    } catch (e) {
+      // storage 不可用或数据损坏
+    }
   }
 }

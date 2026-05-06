@@ -336,3 +336,156 @@ body {
   font-size: 0.8rem;
   color: #6c757d;
 }
+
+/* ===================== 音乐选择器 ===================== */
+.music-selector-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.music-selector {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 360px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.music-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.music-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #999;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.music-close:hover {
+  color: #333;
+}
+
+.music-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.music-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.music-option:hover {
+  background: #f8f9fa;
+}
+
+.music-option.active {
+  border-color: #007bff;
+  background: #e7f1ff;
+}
+
+.music-option-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.music-option.active .music-option-icon {
+  background: #007bff;
+}
+
+.music-option-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.music-option-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #495057;
+}
+
+.music-option-duration {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.music-upload-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.music-upload-hint {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+/* 音量滑块 */
+.music-volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+  margin-top: 16px;
+}
+
+.music-volume label {
+  font-size: 0.85rem;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.music-volume input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #dee2e6;
+  border-radius: 2px;
+  outline: none;
+}
+
+.music-volume input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #007bff;
+  cursor: pointer;
+}
