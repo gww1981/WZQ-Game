@@ -51,6 +51,7 @@ export class GameUI {
     // 控制按钮事件
     const restartBtn = document.getElementById('restartBtn');
     const undoBtn = document.getElementById('undoBtn');
+    const bgBtn = document.getElementById('bgBtn');
 
     if (restartBtn) {
       this.boundHandlers.handleRestart = this.handleRestart.bind(this);
@@ -60,6 +61,11 @@ export class GameUI {
     if (undoBtn) {
       this.boundHandlers.handleUndo = this.handleUndo.bind(this);
       undoBtn.addEventListener('click', this.boundHandlers.handleUndo);
+    }
+
+    if (bgBtn) {
+      this.boundHandlers.handleBgBtn = this.showBackgroundSelector.bind(this);
+      bgBtn.addEventListener('click', this.boundHandlers.handleBgBtn);
     }
 
     // 键盘事件
@@ -355,12 +361,16 @@ export class GameUI {
     // 移除按钮事件
     const restartBtn = document.getElementById('restartBtn');
     const undoBtn = document.getElementById('undoBtn');
+    const bgBtn = document.getElementById('bgBtn');
 
     if (restartBtn && this.boundHandlers.handleRestart) {
       restartBtn.removeEventListener('click', this.boundHandlers.handleRestart);
     }
     if (undoBtn && this.boundHandlers.handleUndo) {
       undoBtn.removeEventListener('click', this.boundHandlers.handleUndo);
+    }
+    if (bgBtn && this.boundHandlers.handleBgBtn) {
+      bgBtn.removeEventListener('click', this.boundHandlers.handleBgBtn);
     }
 
     // 移除键盘事件
@@ -373,5 +383,97 @@ export class GameUI {
     }
 
     this.boundHandlers = {};
+  }
+
+  // 预设背景列表
+  getPresetBackgrounds() {
+    return [
+      { id: 'default', name: '默认木色', file: null },
+      { id: 'wood', name: '木纹', file: 'assets/backgrounds/preset-wood.jpg' },
+      { id: 'green', name: '绿色毛毡', file: 'assets/backgrounds/preset-green.jpg' },
+      { id: 'stone', name: '石头纹理', file: 'assets/backgrounds/preset-stone.jpg' },
+    ];
+  }
+
+  // 显示背景选择器
+  showBackgroundSelector() {
+    // 避免重复打开
+    const existing = document.getElementById('bgSelectorOverlay');
+    if (existing) existing.remove();
+
+    const presets = this.getPresetBackgrounds();
+    const currentType = this.renderer.backgroundType;
+    const currentSrc = this.renderer.backgroundSrc;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'bgSelectorOverlay';
+    overlay.className = 'bg-selector-overlay';
+
+    let optionsHtml = presets.map(p => {
+      const isActive = (p.id === 'default' && currentType === 'default') ||
+        (p.file && currentSrc && currentSrc.endsWith(p.file.split('/').pop()));
+      return `
+        <div class="bg-option ${isActive ? 'active' : ''}" data-id="${p.id}" data-file="${p.file || ''}">
+          ${p.id === 'default'
+            ? '<div class="bg-option-preview" style="background:#deb887"></div>'
+            : `<img class="bg-option-preview" src="${p.file}" alt="${p.name}">`}
+          <span class="bg-option-name">${p.name}</span>
+        </div>
+      `;
+    }).join('');
+
+    overlay.innerHTML = `
+      <div class="bg-selector">
+        <div class="bg-selector-header">
+          <span>选择背景</span>
+          <button class="bg-close" id="bgCloseBtn">×</button>
+        </div>
+        <div class="bg-options">${optionsHtml}</div>
+        <div class="bg-upload-area">
+          <label class="btn btn-secondary">
+            上传图片
+            <input type="file" id="bgFileInput" accept=".jpg,.jpeg,.png" hidden>
+          </label>
+          <span class="bg-upload-hint">支持 JPG、PNG</span>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // 关闭按钮
+    document.getElementById('bgCloseBtn').addEventListener('click', () => overlay.remove());
+
+    // 点击遮罩关闭
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    // 预设背景选择
+    overlay.querySelectorAll('.bg-option').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.id;
+        const file = el.dataset.file;
+        if (id === 'default') {
+          this.renderer.clearBackground();
+        } else {
+          this.renderer.setBackground(file, 'preset');
+        }
+        overlay.remove();
+      });
+    });
+
+    // 自定义上传
+    const fileInput = document.getElementById('bgFileInput');
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        this.renderer.setBackground(ev.target.result, 'custom');
+        overlay.remove();
+      };
+      reader.readAsDataURL(file);
+    });
   }
 }
