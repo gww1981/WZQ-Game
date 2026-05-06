@@ -4,15 +4,47 @@ export class GameRenderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.boardSize = boardSize;
-    this.cellSize = canvas.width / (boardSize + 1);
-    this.pieceRadius = this.cellSize * 0.4;
     this.setupCanvas();
   }
 
-  // 设置 Canvas
+  // 设置 Canvas（支持高 DPI 屏幕）
+  // 关键原则：canvas 内部分辨率 = CSS尺寸 × DPR，这样 ctx 坐标始终等于 CSS 像素
+  // getBoardPosition 也用 CSS 像素，两者完全一致
   setupCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = this.canvas.clientWidth;
+    const displayHeight = this.canvas.clientHeight;
+
+    // 设置内部分辨率为 CSS 尺寸 × DPR（物理像素）
+    this.canvas.width = displayWidth * dpr;
+    this.canvas.height = displayHeight * dpr;
+
+    // 缩放 ctx，这样 ctx 坐标 = CSS 像素，与 getBoardPosition 一致
+    this.ctx.scale(dpr, dpr);
+
+    // cellSize 用 CSS 像素，与绘制坐标和点击坐标完全对齐
+    this.cellSize = displayWidth / (this.boardSize + 1);
+    this.pieceRadius = this.cellSize * 0.4;
+
     this.ctx.imageSmoothingEnabled = true;
     this.ctx.imageSmoothingQuality = 'high';
+  }
+
+  // 响应式重置：当 canvas CSS 尺寸变化时，重新设置分辨率
+  resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = this.canvas.clientWidth;
+    const displayHeight = this.canvas.clientHeight;
+
+    // 重置变换（避免 ctx.scale 累积）
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.scale(dpr, dpr);
+
+    this.canvas.width = displayWidth * dpr;
+    this.canvas.height = displayHeight * dpr;
+
+    this.cellSize = displayWidth / (this.boardSize + 1);
+    this.pieceRadius = this.cellSize * 0.4;
   }
 
   // 渲染整个棋盘
@@ -27,17 +59,19 @@ export class GameRenderer {
 
   // 清空画布
   clearCanvas() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
   }
 
   // 绘制棋盘
   drawBoard() {
     const { ctx, cellSize, boardSize } = this;
     const padding = cellSize;
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
 
     // 绘制棋盘背景
     ctx.fillStyle = '#deb887';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillRect(0, 0, w, h);
 
     // 绘制网格线
     ctx.strokeStyle = '#8b4513';
@@ -49,13 +83,13 @@ export class GameRenderer {
       // 横线
       ctx.beginPath();
       ctx.moveTo(padding, pos);
-      ctx.lineTo(this.canvas.width - padding, pos);
+      ctx.lineTo(w - padding, pos);
       ctx.stroke();
 
       // 竖线
       ctx.beginPath();
       ctx.moveTo(pos, padding);
-      ctx.lineTo(pos, this.canvas.height - padding);
+      ctx.lineTo(pos, h - padding);
       ctx.stroke();
     }
 
@@ -160,9 +194,11 @@ export class GameRenderer {
   // 绘制胜利效果
   drawWinEffect(board) {
     const { ctx } = this;
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
 
     ctx.fillStyle = 'rgba(220, 53, 69, 0.1)';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillRect(0, 0, w, h);
 
     ctx.font = 'bold 48px Microsoft YaHei';
     ctx.fillStyle = '#dc3545';
@@ -170,7 +206,7 @@ export class GameRenderer {
     ctx.textBaseline = 'middle';
 
     const winnerText = board.winner === 'black' ? '黑棋胜利！' : '白棋胜利！';
-    ctx.fillText(winnerText, this.canvas.width / 2, this.canvas.height / 2);
+    ctx.fillText(winnerText, w / 2, h / 2);
   }
 
   // 获取点击的棋盘坐标

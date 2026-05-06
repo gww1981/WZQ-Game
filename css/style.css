@@ -109,6 +109,8 @@ body {
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  display: inline-block;
+  /* 让容器宽度匹配 canvas，使 canvas 的 width:100% 有效 */
 }
 
 #gameCanvas {
@@ -117,6 +119,11 @@ body {
   border-radius: 4px;
   cursor: pointer;
   transition: transform 0.2s;
+  /* 高DPI适配：CSS尺寸控制显示大小，内部分辨率由JS动态设置 */
+  width: 600px;
+  height: 600px;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
 }
 
 #gameCanvas:hover {
@@ -192,10 +199,8 @@ body {
   }
 
   #gameCanvas {
-    width: 100%;
-    height: auto;
-    max-width: 400px;
-    max-height: 400px;
+    width: 400px;
+    height: 400px;
   }
 
   .game-controls {

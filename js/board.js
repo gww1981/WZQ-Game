@@ -53,6 +53,8 @@ export class GameBoard {
     const lastMove = this.moveHistory.pop();
     this.grid[lastMove.y][lastMove.x] = null;
     this.currentPlayer = lastMove.player;
+    this.gameOver = false;
+    this.winner = null;
     return true;
   }
 

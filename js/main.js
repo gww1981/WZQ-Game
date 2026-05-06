@@ -25,7 +25,17 @@ class WZQGame {
     this.renderer.render(this.board);
     this.ui.updateUI();
 
+    // 响应式处理：窗口大小变化时重新设置 canvas 分辨率
+    this.handleResize = this.handleResize.bind(this);
+    window.addEventListener('resize', this.handleResize);
+
     console.log('五子棋游戏初始化完成');
+  }
+
+  // 处理窗口大小变化
+  handleResize() {
+    this.renderer.resize();
+    this.renderer.render(this.board);
   }
 
   // 重新开始游戏
