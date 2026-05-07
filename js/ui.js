@@ -134,7 +134,12 @@ export class GameUI {
 
   // 处理 Canvas 点击
   handleCanvasClick(event) {
-    if (this.game.gameOver || this.isReplayMode) return;
+    if (this.game.gameOver) return;
+    if (this.isReplayMode) {
+      // 点击棋盘退出回放
+      this._exitReplay();
+      return;
+    }
 
     const boardPos = this.renderer.getBoardPosition(event.clientX, event.clientY);
     if (boardPos) {
@@ -874,8 +879,7 @@ export class GameUI {
           statusEl.className = 'game-status game-status--win';
         }
       }
-      this.isReplayMode = false;
-      this.updateReplayButtons();
+      this._exitReplay();
       return;
     }
 
@@ -899,6 +903,23 @@ export class GameUI {
     this.replayManager.replayTimer = setTimeout(() => {
       this._runReplayLoop();
     }, delay);
+  }
+
+  _exitReplay() {
+    this.replayManager.stopReplayLoop();
+    // 恢复原始游戏状态
+    if (this.replaySnapshot) {
+      this.game.grid = this.replaySnapshot.grid.map(row => [...row]);
+      this.game.currentPlayer = this.replaySnapshot.currentPlayer;
+      this.game.gameOver = this.replaySnapshot.gameOver;
+      this.game.winner = this.replaySnapshot.winner;
+      this.game.moveHistory = [...this.replaySnapshot.moveHistory];
+      this.renderer.render(this.game);
+      this.updateUI();
+      this.replaySnapshot = null;
+    }
+    this.isReplayMode = false;
+    this.updateReplayButtons();
   }
 
   toggleReplayPause() {

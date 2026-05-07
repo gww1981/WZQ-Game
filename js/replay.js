@@ -3,13 +3,12 @@ export class ReplayManager {
   constructor(boardSize = 15) {
     this.boardSize = boardSize;
     this.storageKey = 'wzq-last-replay';
+    this._saveTimer = null;
     this.reset();
   }
 
   reset() {
     this.recording = false;
-    this.replaying = false;
-    this.paused = false;
     this.speed = 1;
     this.moves = [];
     this.meta = {
@@ -35,20 +34,20 @@ export class ReplayManager {
     this.recording = false;
     this.meta.endedAt = Date.now();
     this.meta.winner = winner;
-    this.saveLastReplay();
+    this._flushSave();
   }
 
   recordMove(x, y, player) {
-    if (!this.recording || this.replaying) return;
+    if (!this.recording) return;
     const t = this.meta.startedAt ? Date.now() - this.meta.startedAt : 0;
     this.moves.push({ i: this.moves.length + 1, x, y, player, t });
-    this.saveLastReplay();
+    this._scheduleSave();
   }
 
   undoLastMove() {
     if (this.moves.length > 0) {
       this.moves.pop();
-      this.saveLastReplay();
+      this._scheduleSave();
     }
   }
 
@@ -74,11 +73,24 @@ export class ReplayManager {
     this.moves = [...data.moves];
   }
 
-  saveLastReplay() {
+  // 节流写入：500ms 内最多写一次
+  _scheduleSave() {
+    if (this._saveTimer) return;
+    this._saveTimer = setTimeout(() => {
+      this._flushSave();
+      this._saveTimer = null;
+    }, 500);
+  }
+
+  _flushSave() {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(this.getReplayData()));
     } catch (e) {
-      // ignore
+      // storage 不可用或配额超限，静默忽略
     }
   }
 
