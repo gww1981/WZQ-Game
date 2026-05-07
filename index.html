@@ -20,6 +20,19 @@
           <span class="game-status">游戏进行中</span>
           <button id="bgBtn" class="btn btn-icon" title="更换背景">🎨</button>
           <button id="musicBtn" class="btn btn-icon" title="更换音乐">🎵</button>
+          <button id="recordBtn" class="btn btn-icon" title="开始/停止录像">⏺</button>
+          <button id="replayBtn" class="btn btn-icon" title="回放最近录像">▶</button>
+          <button id="pauseReplayBtn" class="btn btn-icon" title="暂停/继续回放">⏸</button>
+          <button id="restartReplayBtn" class="btn btn-icon" title="从头回放">⏮</button>
+          <button id="exportReplayBtn" class="btn btn-icon" title="导出录像JSON">💾</button>
+          <button id="importReplayBtn" class="btn btn-icon" title="导入录像JSON">📂</button>
+          <select id="replaySpeed" class="replay-speed" title="回放速度">
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="2">2x</option>
+            <option value="4">4x</option>
+          </select>
+          <input id="replayFileInput" type="file" accept="application/json,.json" hidden>
         </div>
       </div>
     </header>

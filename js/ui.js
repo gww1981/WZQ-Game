@@ -1,8 +1,9 @@
 // 用户界面控制模块
 export class GameUI {
-  constructor(game, renderer) {
+  constructor(game, renderer, replayManager = null) {
     this.game = game;
     this.renderer = renderer;
+    this.replayManager = replayManager;
     this.canvas = renderer.canvas;
     this.hoverPosition = null;
     // 复用 AudioContext，避免被浏览器自动播放策略阻止
@@ -12,6 +13,11 @@ export class GameUI {
     this.currentMusicSrc = null;
     this.currentMusicType = 'none'; // 'none' | 'preset' | 'custom'
     this.volume = 0.5;
+    // 回放状态
+    this.isReplayMode = false;
+    this.isRecording = false;
+    this.replayPaused = false;
+    this.replaySnapshot = null;
     // 存储事件处理器引用，用于 destroy 时移除
     this.boundHandlers = {};
     this.initEventListeners();
@@ -79,6 +85,48 @@ export class GameUI {
       musicBtn.addEventListener('click', this.boundHandlers.handleMusicBtn);
     }
 
+    const recordBtn = document.getElementById('recordBtn');
+    const replayBtn = document.getElementById('replayBtn');
+    const pauseReplayBtn = document.getElementById('pauseReplayBtn');
+    const restartReplayBtn = document.getElementById('restartReplayBtn');
+    const exportReplayBtn = document.getElementById('exportReplayBtn');
+    const importReplayBtn = document.getElementById('importReplayBtn');
+    const replaySpeed = document.getElementById('replaySpeed');
+    const replayFileInput = document.getElementById('replayFileInput');
+
+    if (recordBtn) {
+      this.boundHandlers.handleRecordBtn = this.toggleRecording.bind(this);
+      recordBtn.addEventListener('click', this.boundHandlers.handleRecordBtn);
+    }
+    if (replayBtn) {
+      this.boundHandlers.handleReplayBtn = this.startReplay.bind(this);
+      replayBtn.addEventListener('click', this.boundHandlers.handleReplayBtn);
+    }
+    if (pauseReplayBtn) {
+      this.boundHandlers.handlePauseReplayBtn = this.toggleReplayPause.bind(this);
+      pauseReplayBtn.addEventListener('click', this.boundHandlers.handlePauseReplayBtn);
+    }
+    if (restartReplayBtn) {
+      this.boundHandlers.handleRestartReplayBtn = this.restartReplay.bind(this);
+      restartReplayBtn.addEventListener('click', this.boundHandlers.handleRestartReplayBtn);
+    }
+    if (exportReplayBtn) {
+      this.boundHandlers.handleExportReplayBtn = this.exportReplay.bind(this);
+      exportReplayBtn.addEventListener('click', this.boundHandlers.handleExportReplayBtn);
+    }
+    if (importReplayBtn && replayFileInput) {
+      this.boundHandlers.handleImportReplayBtn = () => replayFileInput.click();
+      importReplayBtn.addEventListener('click', this.boundHandlers.handleImportReplayBtn);
+      this.boundHandlers.handleReplayFileInput = this.importReplay.bind(this);
+      replayFileInput.addEventListener('change', this.boundHandlers.handleReplayFileInput);
+    }
+    if (replaySpeed) {
+      this.boundHandlers.handleReplaySpeed = (e) => {
+        if (this.replayManager) this.replayManager.setSpeed(e.target.value);
+      };
+      replaySpeed.addEventListener('change', this.boundHandlers.handleReplaySpeed);
+    }
+
     // 键盘事件
     this.boundHandlers.handleKeyDown = this.handleKeyDown.bind(this);
     document.addEventListener('keydown', this.boundHandlers.handleKeyDown);
@@ -86,7 +134,7 @@ export class GameUI {
 
   // 处理 Canvas 点击
   handleCanvasClick(event) {
-    if (this.game.gameOver) return;
+    if (this.game.gameOver || this.isReplayMode) return;
 
     const boardPos = this.renderer.getBoardPosition(event.clientX, event.clientY);
     if (boardPos) {
@@ -97,7 +145,7 @@ export class GameUI {
   // 处理 Canvas 触摸开始
   handleCanvasTouchStart(event) {
     event.preventDefault();
-    if (this.game.gameOver) return;
+    if (this.game.gameOver || this.isReplayMode) return;
 
     const touch = event.touches[0];
     const boardPos = this.renderer.getBoardPosition(touch.clientX, touch.clientY);
@@ -131,13 +179,22 @@ export class GameUI {
 
   // 尝试落子（合并点击和触摸的落子逻辑）
   tryPlaceStone(x, y) {
+    const playerBeforeMove = this.game.currentPlayer;
     const success = this.game.placeStone(x, y);
     if (success) {
+      if (this.replayManager && this.isRecording && !this.isReplayMode) {
+        this.replayManager.recordMove(x, y, playerBeforeMove);
+      }
       this.updateUI();
       this.renderer.render(this.game);
       this.playPlaceSound();
 
       if (this.game.gameOver) {
+        if (this.replayManager && this.isRecording) {
+          this.replayManager.stopRecording(this.game.winner);
+          this.isRecording = false;
+          this.updateReplayButtons();
+        }
         this.playWinSound();
       }
     }
@@ -174,6 +231,10 @@ export class GameUI {
   // 处理重新开始
   handleRestart() {
     this.game.reset();
+    if (this.replayManager && this.isRecording) {
+      this.replayManager.stopRecording(null);
+      this.replayManager.startRecording();
+    }
     this.updateUI();
     this.renderer.render(this.game);
     this.playRestartSound();
@@ -181,9 +242,12 @@ export class GameUI {
 
   // 处理悔棋
   handleUndo() {
-    if (this.game.moveHistory.length > 0 && !this.game.gameOver) {
+    if (this.game.moveHistory.length > 0 && !this.game.gameOver && !this.isReplayMode) {
       const success = this.game.undo();
       if (success) {
+        if (this.replayManager && this.isRecording) {
+          this.replayManager.undoLastMove();
+        }
         this.updateUI();
         this.renderer.render(this.game);
         this.playUndoSound();
@@ -227,6 +291,7 @@ export class GameUI {
     this.updatePlayerInfo();
     this.updateGameStatus();
     this.updateControlButtons();
+    this.updateReplayButtons();
   }
 
   // 更新玩家信息
@@ -262,6 +327,19 @@ export class GameUI {
     if (undoBtn) {
       undoBtn.disabled = this.game.moveHistory.length === 0 || this.game.gameOver;
     }
+  }
+
+  updateReplayButtons() {
+    const recordBtn = document.getElementById('recordBtn');
+    const replayBtn = document.getElementById('replayBtn');
+    const pauseReplayBtn = document.getElementById('pauseReplayBtn');
+
+    if (recordBtn) {
+      recordBtn.textContent = this.isRecording ? '⏹' : '⏺';
+      recordBtn.title = this.isRecording ? '停止录像' : '开始录像';
+    }
+    if (replayBtn) replayBtn.disabled = this.isReplayMode;
+    if (pauseReplayBtn) pauseReplayBtn.disabled = !this.isReplayMode;
   }
 
   // 播放落子音效
@@ -395,6 +473,13 @@ export class GameUI {
       this.backgroundAudio.src = '';
       this.backgroundAudio = null;
     }
+
+    // 停止回放
+    if (this.replayManager) {
+      this.replayManager.stopReplayLoop();
+    }
+    this.isReplayMode = false;
+    this.isRecording = false;
 
     // 移除键盘事件
     document.removeEventListener('keydown', this.boundHandlers.handleKeyDown);
@@ -725,5 +810,154 @@ export class GameUI {
     } catch (e) {
       // storage 不可用或数据损坏
     }
+  }
+
+  // ===================== 录像回放相关 =====================
+
+  // 切换录像状态
+  toggleRecording() {
+    if (!this.replayManager) return;
+    if (this.isReplayMode) return;
+
+    if (this.isRecording) {
+      this.replayManager.stopRecording(null);
+      this.isRecording = false;
+    } else {
+      this.game.reset();
+      this.renderer.render(this.game);
+      this.replayManager.startRecording();
+      this.isRecording = true;
+    }
+    this.updateReplayButtons();
+  }
+
+  // 开始回放
+  startReplay() {
+    if (!this.replayManager) return;
+    if (this.isReplayMode) return;
+
+    const data = this.replayManager.loadLastReplay();
+    if (!data || data.moves.length === 0) {
+      alert('没有可回放的录像');
+      return;
+    }
+
+    this.replaySnapshot = {
+      grid: this.game.grid.map(row => [...row]),
+      currentPlayer: this.game.currentPlayer,
+      gameOver: this.game.gameOver,
+      winner: this.game.winner,
+      moveHistory: [...this.game.moveHistory],
+    };
+
+    this.game.reset();
+    this.replayManager.replayIndex = 0;
+    this.isReplayMode = true;
+    this.replayPaused = false;
+    this.updateReplayButtons();
+    this.renderer.render(this.game);
+    this._runReplayLoop();
+  }
+
+  _runReplayLoop() {
+    if (!this.isReplayMode || this.replayPaused) return;
+
+    const moves = this.replayManager.moves;
+    const idx = this.replayManager.replayIndex;
+
+    if (idx >= moves.length) {
+      if (this.replayManager.meta.winner) {
+        const winText = this.replayManager.meta.winner === 'black' ? '黑棋胜利！' : '白棋胜利！';
+        const statusEl = document.querySelector('.game-status');
+        if (statusEl) {
+          statusEl.textContent = winText;
+          statusEl.className = 'game-status game-status--win';
+        }
+      }
+      this.isReplayMode = false;
+      this.updateReplayButtons();
+      return;
+    }
+
+    const move = moves[idx];
+    this.game.placeStone(move.x, move.y);
+    this.playPlaceSound();
+    this.renderer.render(this.game);
+    this.replayManager.replayIndex++;
+
+    if (idx === 0 && this.currentMusicSrc && this.currentMusicType !== 'none') {
+      this.playMusic(this.currentMusicSrc);
+    }
+
+    const nextMove = moves[idx + 1];
+    let delay = 600;
+    if (nextMove && move.t && nextMove.t) {
+      delay = Math.min(3000, Math.max(200, (nextMove.t - move.t) / this.replayManager.speed));
+    }
+    delay = delay / this.replayManager.speed;
+
+    this.replayManager.replayTimer = setTimeout(() => {
+      this._runReplayLoop();
+    }, delay);
+  }
+
+  toggleReplayPause() {
+    if (!this.isReplayMode) return;
+    this.replayPaused = !this.replayPaused;
+    if (!this.replayPaused) {
+      this._runReplayLoop();
+    } else {
+      this.replayManager.stopReplayLoop();
+    }
+    const pauseBtn = document.getElementById('pauseReplayBtn');
+    if (pauseBtn) pauseBtn.textContent = this.replayPaused ? '▶' : '⏸';
+  }
+
+  restartReplay() {
+    if (!this.replayManager) return;
+    this.replayManager.stopReplayLoop();
+    this.game.reset();
+    this.replayManager.replayIndex = 0;
+    this.replayPaused = false;
+    this.isReplayMode = true;
+    this.updateReplayButtons();
+    this.renderer.render(this.game);
+    this._runReplayLoop();
+  }
+
+  exportReplay() {
+    if (!this.replayManager) return;
+    const data = this.replayManager.getReplayData();
+    if (data.moves.length === 0) {
+      alert('没有可导出的录像');
+      return;
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.href = url;
+    a.download = `wzq-replay-${ts}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  importReplay(e) {
+    if (!this.replayManager) return;
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        this.replayManager.loadReplayData(data);
+        this.replayManager.saveLastReplay();
+        e.target.value = '';
+        this.startReplay();
+      } catch (err) {
+        alert('录像文件格式无效: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
   }
 }
