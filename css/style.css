@@ -52,7 +52,18 @@ body {
 .game-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.replay-speed {
+  border: 2px solid #adb5bd;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  color: #495057;
+  background: #fff;
 }
 
 .btn-icon {

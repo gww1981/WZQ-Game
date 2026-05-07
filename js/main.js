@@ -2,6 +2,7 @@
 import { GameBoard } from './board.js';
 import { GameRenderer } from './render.js';
 import { GameUI } from './ui.js';
+import { ReplayManager } from './replay.js';
 
 class WZQGame {
   constructor() {
@@ -19,8 +20,9 @@ class WZQGame {
     // 初始化游戏组件
     this.board = new GameBoard(15);
     this.renderer = new GameRenderer(canvas, 15);
+    this.replayManager = new ReplayManager(15);
     this.renderer.board = this.board; // 让 renderer 能访问 board（用于背景加载后重绘）
-    this.ui = new GameUI(this.board, this.renderer);
+    this.ui = new GameUI(this.board, this.renderer, this.replayManager);
 
     // 初始渲染
     this.renderer.render(this.board);
