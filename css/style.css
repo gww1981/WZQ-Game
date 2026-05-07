@@ -66,6 +66,17 @@ body {
   background: #fff;
 }
 
+.replay-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid #e9ecef;
+  margin-top: 4px;
+}
+
 .btn-icon {
   background: transparent;
   border: 2px solid #adb5bd;
