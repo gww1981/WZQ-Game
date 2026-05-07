@@ -73,12 +73,9 @@ body {
 .replay-actions {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  padding-top: 4px;
-  border-top: 1px solid #e9ecef;
-  width: 100%;
 }
 
 .btn-icon {
@@ -183,6 +180,9 @@ body {
 /* 游戏底部 */
 .game-footer {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .game-controls {
